@@ -4,7 +4,7 @@ def create_elevator(id:int, capacity:int) -> dict:
     elevator['name'] = f"elevator{str(id)}"
     elevator['capacity'] = capacity
     elevator['curr_floor'] = 1
-    elevator['curr_direction'] = 0
+    elevator['curr_direction'] = 1
     elevator['passengers'] = []
     elevator['requests'] = []
     elevator['target_floors'] = []
@@ -19,15 +19,12 @@ def add_request(elevator:dict, psgr:dict):
     
 def load_passenger(elevator:dict,psgr:dict):
     print(f"loading passenger {psgr['id']} on elevator {elevator['name']}")
-    if len(elevator['passengers'])<elevator['capacity']:
-        elevator['passengers'].append(psgr)
-        elevator['requests'] = [p for p in elevator['requests'] if p['id']!=psgr['id']]
-        elevator['target_floors'].append(psgr['dest'])
-        # remove request source floor from target list
-        elevator['target_floors'] = [f for f in elevator['target_floors'] if f!=psgr['source']]
-        psgr['status'] = "riding"
-    else:
-        print(f"elevator {elevator['name']} is full")
+    elevator['passengers'].append(psgr)
+    elevator['requests'] = [p for p in elevator['requests'] if p['id']!=psgr['id']]
+    elevator['target_floors'].append(psgr['dest'])
+    # remove request source floor from target list; replaced by destination floor
+    elevator['target_floors'] = [f for f in elevator['target_floors'] if f!=psgr['source']]
+    psgr['status'] = "riding"
 
 
 def unload_passenger(elevator:dict,psgr:dict):

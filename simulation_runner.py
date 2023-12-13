@@ -1,6 +1,8 @@
 import json
+from datetime import datetime
 from argparse import ArgumentParser
 from elevator import create_elevator, add_request, load_passenger, unload_passenger
+from elevator_picker import get_best_elevator
 
 
 def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) -> dict:
@@ -12,49 +14,40 @@ def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) ->
     b['elevators'] = []
     for i in range(num_elevators):
         b['elevators'].append(create_elevator(i,elevator_capacity))
-        print(f"created elevator {b['elevators'][i]['name']}")
     return b
-
-
-def get_best_elevator(sim_building:dict, psgr:dict) -> str:
-    # logic to pick the best elevator for current request
-    print(f"getting best elevator for {psgr['id']}...")
-    for e in sim_building['elevators']:
-        print(f"{len(e['target_floors'])}; {e['capacity']}")
-        if len(e['passengers']) + len(e['requests'])==e['capacity']:
-            print(f"elevator {e['name']} is full")
-        else:
-            return e['name']
-
-    return sim_building['elevators'][0]['name']
 
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-f","--floors",help="enter number of floors in building",type=int)
-    parser.add_argument("-e","--elevators",help="enter number of elevators in building",type=int)
-    parser.add_argument("-c","--capacity",help="enter elevator capacity",type=int)
-    # parser.add_argument("-s","--psgrs",help="number of passengers to model in simulation")
+    parser.add_argument("-f","--floors",help="the number of floors in building",type=int)
+    parser.add_argument("-e","--elevators",help="the number of elevators in building",type=int)
+    parser.add_argument("-c","--capacity",help="the elevator capacity",type=int)
+    parser.add_argument("-a","--algorithm",help="the type of algorithm to use for requests", type=str)
+    
+    # initialize simulation
     args = parser.parse_args()
-    sim_file_name = "simulation_list.json"
-    results_file_name = "results_elevator.csv"
-    passenger_stats_filename = "passenger_stats.csv"
-    active_passengers = 0
+    time_str = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+    sim_file_name = f"simulation_list.json"
+    results_file_name = f"results_elevators_{time_str}.csv"
+    passenger_stats_filename = f"passenger_stats_{time_str}.csv"
+    algorithm_to_use = args.algorithm
 
     sim_building = create_building(args.floors, args.elevators, args.capacity)
-
+    active_passengers = 0
+    # calculate max time simulator will need to run
+    max_time = args.floors*2
     with open(sim_file_name, 'r') as sim_file:
         sim_list = json.load(sim_file)
-
-    for t in range(12):
+        max_request = max(sim_list, key=lambda p: p['time'])
+        max_time += max_request['time']
+    
+    # run simulator through time until 
+    for t in range(max_time):
         print(f"starting time {str(t)} iteration")
-        remaining_requests = len([p for p in sim_list if p['time'] > t])
-        print(f"remaining requests: {remaining_requests}")
-
+        
         # first, move elevator if it has passengers or requests
         # should be no movement at time zero since no passengers or requests yet
         for e in sim_building['elevators']:
-            # print(f"elevator {e['name']} was on floor {e['curr_floor']}")
             print(f"""elevator {e['name']} has {len(e['passengers'])} passengers and {len(e['requests'])} requests, was on floor {e['curr_floor']}""")
             if len(e['passengers'])==0 and len(e['requests'])==0:
                 print(f"elevator {e['name']} is still on floor {e['curr_floor']}")
@@ -63,8 +56,6 @@ def main():
                 print(f"elevator {e['name']} is now on floor {e['curr_floor']}")
 
         # second, elevators unload and then load passengers based on current floor
-            print(f"updating elevator {e['name']} at time {str(t)}")
-            
             # unload first
             if len(e['passengers']):
                 print(f"unloading riders for elevator {e['name']}")
@@ -75,8 +66,6 @@ def main():
                         p['end_time'] = t
                         with open(passenger_stats_filename,'a') as passenger_stats_file:
                             passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['start_time'] - p['request_time']},{p['end_time'] - p['start_time']}\n")
-            else:
-                print(f"elevator {e['name']} has no current passengers to unload")
             
         # third, new passengers for current time period make requests
         # and get assigned an elevator
@@ -87,11 +76,9 @@ def main():
             for p in new_passengers:
                 p['status'] = "waiting"
                 p['request_time'] = t
-                assigned_elevator_name = get_best_elevator(sim_building, p)
-                for e in sim_building['elevators']:
-                    if assigned_elevator_name==e['name']:
-                        add_request(e,p)
-                        active_passengers+=1
+                assigned_elevator = get_best_elevator(sim_building['elevators'], p, algorithm_to_use)
+                add_request(assigned_elevator,p)
+                active_passengers+=1
         else:
             print(f"no new passengers at time {str(t)}")
 
@@ -123,7 +110,8 @@ def main():
         
         print(f"end of time {t}; active passengers: {active_passengers}")
         # stop simulation when no more active passengers and no future requests in sim file
-        if active_passengers==0 and remaining_requests==0:
+        future_requests = len([p for p in sim_list if p['time'] > t])
+        if active_passengers==0 and future_requests==0:
             print(f"simulation stopped; no new active passengers and no upcoming requests")
             break
     
