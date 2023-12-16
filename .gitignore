@@ -163,3 +163,4 @@ cython_debug/
 passenger_stats*.csv
 results_elevators*.csv
 test.py
+simulation_list*.json

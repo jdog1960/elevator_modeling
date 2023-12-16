@@ -9,6 +9,16 @@ def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) ->
     print(f"""creating building with {num_floors} floors, 
           {num_elevators} elevators, 
           {elevator_capacity} passengers per elevator""")
+    
+    # validate building first
+    if num_floors <= 2:
+        print('number of floors must be greater than 2')
+        return
+    
+    if num_elevators <= 1:
+        print('number of elevators must be greater than 1')
+        return
+    
     b = {}
     b['floors'] = num_floors
     b['elevators'] = []
@@ -27,7 +37,7 @@ def main():
     # initialize simulation
     args = parser.parse_args()
     time_str = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    sim_file_name = f"simulation_list.json"
+    sim_file_name = f"simulation_list_{time_str}.json"
     results_file_name = f"results_elevators_{time_str}.csv"
     passenger_stats_filename = f"passenger_stats_{time_str}.csv"
     algorithm_to_use = args.algorithm
@@ -65,7 +75,7 @@ def main():
                         active_passengers+=-1
                         p['end_time'] = t
                         with open(passenger_stats_filename,'a') as passenger_stats_file:
-                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['start_time'] - p['request_time']},{p['end_time'] - p['start_time']}\n")
+                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['request_time']},{p['start_time']},{p['end_time']}\n")
             
         # third, new passengers for current time period make requests
         # and get assigned an elevator
