@@ -160,6 +160,6 @@ cython_debug/
 #.idea/
 
 # specific to project - exclude results csv files and scratchpad python file
-passenger_stats*.csv
-results_elevators*.csv
+output/
+input/
 test.py

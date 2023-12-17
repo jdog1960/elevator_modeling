@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from argparse import ArgumentParser
+from sim_list_builder import build_simulation_list
 from elevator import create_elevator, add_request, load_passenger, unload_passenger
 from elevator_picker import get_best_elevator
 
@@ -9,6 +10,16 @@ def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) ->
     print(f"""creating building with {num_floors} floors, 
           {num_elevators} elevators, 
           {elevator_capacity} passengers per elevator""")
+    
+    # validate building first
+    if num_floors <= 2:
+        print('number of floors must be greater than 2')
+        return
+    
+    if num_elevators <= 1:
+        print('number of elevators must be greater than 1')
+        return
+    
     b = {}
     b['floors'] = num_floors
     b['elevators'] = []
@@ -19,29 +30,32 @@ def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) ->
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-f","--floors",help="the number of floors in building",type=int)
-    parser.add_argument("-e","--elevators",help="the number of elevators in building",type=int)
-    parser.add_argument("-c","--capacity",help="the elevator capacity",type=int)
-    parser.add_argument("-a","--algorithm",help="the type of algorithm to use for requests", type=str)
-    
+    parser.add_argument("-f", "--floors", help="the number of floors in building", type=int)
+    parser.add_argument("-e", "--elevators", help="the number of elevators in building", type=int)
+    parser.add_argument("-c", "--capacity", help="the elevator capacity", type=int)
+    parser.add_argument("-a", "--algorithm", help="the type of algorithm to use for requests", type=str)
+    parser.add_argument("-p", "--passengers", help="number of passengers to run through simulator", type=int)
+    parser.add_argument("-t", "--time", help="max time for an elevator request", type=int)
+
     # initialize simulation
     args = parser.parse_args()
     time_str = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    sim_file_name = f"simulation_list.json"
-    results_file_name = f"results_elevators_{time_str}.csv"
-    passenger_stats_filename = f"passenger_stats_{time_str}.csv"
+    sim_file_name = build_simulation_list(args.floors, args.passengers, args.time)
+    results_file_name = f"output/results_elevators_{time_str}.csv"
+    passenger_stats_filename = f"output/passenger_stats_{time_str}.csv"
     algorithm_to_use = args.algorithm
 
     sim_building = create_building(args.floors, args.elevators, args.capacity)
     active_passengers = 0
     # calculate max time simulator will need to run
     max_time = args.floors*2
+    
     with open(sim_file_name, 'r') as sim_file:
         sim_list = json.load(sim_file)
         max_request = max(sim_list, key=lambda p: p['time'])
         max_time += max_request['time']
     
-    # run simulator through time until 
+    # run simulator through time until no more passengers to serve 
     for t in range(max_time):
         print(f"starting time {str(t)} iteration")
         
@@ -65,7 +79,7 @@ def main():
                         active_passengers+=-1
                         p['end_time'] = t
                         with open(passenger_stats_filename,'a') as passenger_stats_file:
-                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['start_time'] - p['request_time']},{p['end_time'] - p['start_time']}\n")
+                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['request_time']},{p['start_time']},{p['end_time']}\n")
             
         # third, new passengers for current time period make requests
         # and get assigned an elevator
@@ -95,7 +109,9 @@ def main():
 
             # set direction for elevator for next tick of time, based on
             # requests and elevators
-            if len(e['target_floors']):
+            print(f"target floors list: {e['target_floors']}")
+            print(e['curr_floor'])
+            if len(e['requests']) or len(e['passengers']):
                 if min(e['target_floors']) > e['curr_floor']:
                     e['curr_direction'] = 1
                     print(f"direction is up; next stop: {min(e['target_floors'])}")
