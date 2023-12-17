@@ -7,7 +7,7 @@ def build_simulation_list(floors:int, psgrs:int, max_time:int) -> str:
     
     sim_list = []
     time_str = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    sim_list_filename = f"simulation_list_{time_str}"
+    sim_list_filename = f"input/simulation_list_{time_str}"
 
     for i in range(psgrs):
         psgr = {}

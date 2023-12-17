@@ -45,8 +45,20 @@ def get_next_elevator_coming_to_me(elevator_list:list, psgr:dict):
         else:
             return e
     
-    print(f"failed to assign an elevator for passenger {psgr['id']}")
+    print(f"no elevators available in same direction for passenger {psgr['id']}")
+    
+    # alternative 1: find closest empty elevator independent of requests or direction
+    empty_list = [e for e in elevator_list if len(e['passengers']) == 0]
 
+    if empty_list:
+        empty_list.sort(key = lambda x: get_wait_distance(x, psgr))
+        return empty_list[0]
+
+    # alternative 2: get closest non-empty elevator after it drops off last psgr
+    non_empty_list = [e for e in elevator_list if len(e['passengers']) > 0]
+    non_empty_list.sort(key = lambda x: get_wait_distance_post_empty(x, psgr))
+    return non_empty_list[0]
+    
 
 def is_elevator_full(elevator:dict, target_floor=None):
     current_load = len(elevator['passengers'])
@@ -76,3 +88,13 @@ def get_capacity_changes(elevator:dict, target_floor:int, on_or_off:str):
 
 def get_wait_distance(elevator:dict, psgr:dict) -> int:
     return abs(psgr['source'] - elevator['curr_floor'])
+
+def get_wait_distance_post_empty(elevator:dict, psgr:dict) -> int:
+    """"
+        find distance from requesting passenger
+        for an elevator 
+        after it drops off its last passenger
+    """
+    psgr_dest_list = [p['dest'] for p in elevator['passengers']]
+    terminal_floor = max(psgr_dest_list) if elevator['curr_direction'] == 1 else min(psgr_dest_list)
+    return abs(psgr['source'] - terminal_floor)

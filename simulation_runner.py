@@ -41,20 +41,21 @@ def main():
     args = parser.parse_args()
     time_str = datetime.now().strftime("%Y_%m_%d_%H%M%S")
     sim_file_name = build_simulation_list(args.floors, args.passengers, args.time)
-    results_file_name = f"results_elevators_{time_str}.csv"
-    passenger_stats_filename = f"passenger_stats_{time_str}.csv"
+    results_file_name = f"output/results_elevators_{time_str}.csv"
+    passenger_stats_filename = f"output/passenger_stats_{time_str}.csv"
     algorithm_to_use = args.algorithm
 
     sim_building = create_building(args.floors, args.elevators, args.capacity)
     active_passengers = 0
     # calculate max time simulator will need to run
     max_time = args.floors*2
+    
     with open(sim_file_name, 'r') as sim_file:
         sim_list = json.load(sim_file)
         max_request = max(sim_list, key=lambda p: p['time'])
         max_time += max_request['time']
     
-    # run simulator through time until 
+    # run simulator through time until no more passengers to serve 
     for t in range(max_time):
         print(f"starting time {str(t)} iteration")
         
