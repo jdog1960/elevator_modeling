@@ -12,18 +12,22 @@ def build_simulation_list(floors:int, psgrs:int, max_time:int) -> str:
     for i in range(psgrs):
         psgr = {}
         psgr['time'] = random.randrange(0, max_time, 1)
-        psgr['name'] = f"psgr{i}"
+        psgr['id'] = f"psgr{i}"
+        floor1 = random.randint(1,floors)
+        floor2 = random.choice([f for f in range(1,floors) if f != floor1])
         psgr_dir = choose_direction()
-        psgr['source'] = choose_source(floors, psgr_dir)
-        psgr['destination'] = choose_destination(floors, psgr['source'], psgr_dir)
+        if psgr_dir == 1:
+            psgr['source'],psgr['dest'] = floor1, floor2
+        else:
+            psgr['source'],psgr['dest'] = floor2, floor1
         sim_list.append(psgr)
-        print(psgr)
+        # print(psgr)
 
     with open(sim_list_filename, 'w') as sim_list_file:
-        json.dump(sim_list)
-        
+        json.dump(sim_list,sim_list_file)
 
-    
+    return sim_list_filename
+        
 
 def choose_direction():
     n = random.randint(1,10)
@@ -49,7 +53,7 @@ def main():
     psgrs = 20
     time = 15
 
-    build_simulation_list(floors, psgrs, time)
+    print(build_simulation_list(floors, psgrs, time))
 
 
 if __name__ == "__main__":

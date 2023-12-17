@@ -17,11 +17,14 @@ def get_next_elevator_in_list(elevator_list:list):
             print(f"elevator {e['name']} is full")
         else:
             return e
+    
+    # if all elevators are full
+    return elevator_list[0]
         
 
 def get_next_elevator_coming_to_me(elevator_list:list, psgr:dict):
     # print("running same_dir algorithm")
-    psgr_direction = 1 if psgr['dest'] - psgr['source'] > 0 else -1
+    psgr_direction = 1 if psgr['dest'] > psgr['source'] else -1
     # narrow to only elevators going in same direction
     pick_list = [e for e in elevator_list if e['curr_direction'] == psgr_direction]
     print(f"pick list length after removing wrong direction: {len(pick_list)}")
@@ -45,18 +48,30 @@ def get_next_elevator_coming_to_me(elevator_list:list, psgr:dict):
     print(f"failed to assign an elevator for passenger {psgr['id']}")
 
 
-def is_elevator_full(elevator, source_floor=None):
-    current_load = len(elevator['passengers']) + len(elevator['requests'])
-    unloaded_before_pickup = 0
+def is_elevator_full(elevator:dict, target_floor=None):
+    current_load = len(elevator['passengers'])
     print(f"current load for elevator {elevator['name']} is {current_load}")
-    dir = elevator['curr_direction']
-    if source_floor:
-        unloaded_before_pickup = len([f for f in elevator['target_floors'] 
-                                      if f*dir > elevator['curr_floor']*dir
-                                      and f*dir <= source_floor])
-        print(f"unloaded before pickup for elevator {elevator['name']} is {unloaded_before_pickup}")
+    getting_off = 0
+    getting_on = 0
+    
+    if target_floor:
+        getting_off = get_capacity_changes(elevator, target_floor, "off")
+        getting_on = get_capacity_changes(elevator, target_floor, "on")
 
-    return elevator['capacity'] <= current_load - unloaded_before_pickup
+    return elevator['capacity'] <= current_load - getting_off + getting_on
+
+
+def get_capacity_changes(elevator:dict, target_floor:int, on_or_off:str):
+    dir = elevator['curr_direction']
+    psgr_list = elevator['passengers'] if on_or_off == "off" else elevator['requests']
+    psgr_field = "source" if on_or_off == "off" else "dest"
+
+    changes_list = [p[psgr_field] for p in psgr_list 
+                      if p[psgr_field]*dir > elevator['curr_floor']*dir
+                      and p[psgr_field]*dir <= target_floor*dir]
+
+    print(f"elevator {elevator['name']} getting {on_or_off}: {changes_list}")
+    return len(changes_list)
 
 
 def get_wait_distance(elevator:dict, psgr:dict) -> int:
