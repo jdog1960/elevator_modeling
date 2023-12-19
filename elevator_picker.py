@@ -35,7 +35,7 @@ def get_next_elevator_simple_random(elevator_list:list):
             return e
     
     # if all elevators are full, pick one at random
-    return elevator_list[random.randint(0, len(elevator_list))]
+    return elevator_list[random.randint(0, len(elevator_list)-1)]
         
 
 def get_next_elevator_same_dir(elevator_list:list, psgr:dict):
