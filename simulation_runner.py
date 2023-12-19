@@ -48,7 +48,7 @@ def main():
     sim_building = create_building(args.floors, args.elevators, args.capacity)
     active_passengers = 0
     # calculate max time simulator will need to run
-    max_time = args.floors*2
+    max_time = args.floors*args.elevators
     
     with open(sim_file_name, 'r') as sim_file:
         sim_list = json.load(sim_file)
@@ -62,14 +62,14 @@ def main():
         # first, move elevator if it has passengers or requests
         # should be no movement at time zero since no passengers or requests yet
         for e in sim_building['elevators']:
-            print(f"""elevator {e['name']} has {len(e['passengers'])} passengers and {len(e['requests'])} requests, was on floor {e['curr_floor']}""")
+            print(f"{e['name']} has {len(e['passengers'])} passengers and {len(e['requests'])} requests, was on floor {e['curr_floor']}, direction {e['curr_direction']}")
             if len(e['passengers'])==0 and len(e['requests'])==0:
                 print(f"elevator {e['name']} is still on floor {e['curr_floor']}")
             else:
                 e['curr_floor'] += e['curr_direction']
-                print(f"elevator {e['name']} is now on floor {e['curr_floor']}")
+                print(f"{e['name']} is now on floor {e['curr_floor']}")
 
-        # second, elevators unload and then load passengers based on current floor
+            # second, elevators unload and then load passengers based on current floor
             # unload first
             if len(e['passengers']):
                 print(f"unloading riders for elevator {e['name']}")
@@ -79,8 +79,10 @@ def main():
                         active_passengers+=-1
                         p['end_time'] = t
                         with open(passenger_stats_filename,'a') as passenger_stats_file:
-                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['request_time']},{p['start_time']},{p['end_time']}\n")
-            
+                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['request_time']},{p['start_time']},{p['end_time']},{e['name']}\n")
+            else:
+                print(f"no passengers to unload for elevator {e['name']}")
+
         # third, new passengers for current time period make requests
         # and get assigned an elevator
         new_passengers = [p for p in sim_list if p['time']==t]
@@ -105,12 +107,11 @@ def main():
                         load_passenger(e,r)
                         r['start_time'] = t
             else:
-                print(f"elevator {e['name']} has no current requests")
+                print(f"elevator {e['name']} has no passengers to load on floor {e['curr_floor']}")
 
             # set direction for elevator for next tick of time, based on
             # requests and elevators
             print(f"target floors list: {e['target_floors']}")
-            print(e['curr_floor'])
             if len(e['requests']) or len(e['passengers']):
                 if min(e['target_floors']) > e['curr_floor']:
                     e['curr_direction'] = 1
@@ -122,7 +123,7 @@ def main():
             print(f"elevator {e['name']} has {len(e['requests'])} requests and {len(e['passengers'])} riders")
 
             with open(results_file_name, 'a') as result_file:
-                result_file.write(f"{t},{e['name']},{e['curr_floor']},{e['curr_direction']},{len(e['passengers'])},{len(e['requests'])},{e['target_floors']}\n")
+                result_file.write(f"{t},{e['name']},{e['curr_floor']},{e['curr_direction']},{len(e['passengers'])},{len(e['requests'])},\"{e['target_floors']}\"\n")
         
         print(f"end of time {t}; active passengers: {active_passengers}")
         # stop simulation when no more active passengers and no future requests in sim file
