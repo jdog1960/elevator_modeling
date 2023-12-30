@@ -2,19 +2,25 @@
 import random
 from elevator import is_elevator_full_now, is_elevator_full_at_target, has_max_requests
 
+
 def get_best_elevator(elevator_list:list, psgr:dict, method_id:str) -> dict:
     # logic to pick the best elevator for current request
     print(f"getting best elevator for {psgr['id']} using method {method_id}...")
+    algo_options = {'simple_list':get_next_elevator_simple_list,
+                    'simple_random':get_next_elevator_simple_random,
+                    'same_dir':get_next_elevator_same_dir}
 
-    if method_id == "simple_list":
-        return get_next_elevator_simple_list(elevator_list)
-    if method_id == "simple_random":
-        return get_next_elevator_simple_random(elevator_list)
-    if method_id == "same_dir":
-        return get_next_elevator_same_dir(elevator_list, psgr)
+    return algo_options[method_id](elevator_list,psgr)
+ 
+    # if method_id == "simple_list":
+    #     return get_next_elevator_simple_list(elevator_list)
+    # if method_id == "simple_random":
+    #     return get_next_elevator_simple_random(elevator_list)
+    # if method_id == "same_dir":
+    #     return get_next_elevator_same_dir(elevator_list, psgr)
 
 
-def get_next_elevator_simple_list(elevator_list:list):
+def get_next_elevator_simple_list(elevator_list:list, psgr:dict=None):
     # print(f"running simple_list algorithm")
     for e in elevator_list:
         if is_elevator_full_now(e):
@@ -26,7 +32,7 @@ def get_next_elevator_simple_list(elevator_list:list):
     return elevator_list[0]
 
 
-def get_next_elevator_simple_random(elevator_list:list):
+def get_next_elevator_simple_random(elevator_list:list, psgr:dict=None):
     # print(f"running simple_list algorithm")
     for e in elevator_list:
         if is_elevator_full_now(e) or has_max_requests(e):
