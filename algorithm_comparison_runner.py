@@ -2,6 +2,7 @@ import os
 from sim_list_builder import build_simulation_list
 import simulation_runner
 from elevator_analyser import analyse_elevator_stats
+from passenger_analyser import analyse_passenger_stats
 
 def main():
 
@@ -33,6 +34,12 @@ def main():
         analyse_elevator_stats(f, first_in_line)
         first_in_line = False
 
+    # third, generate passenger summary stats
+    file_list = [f for f in os.listdir("output") if "passenger_stats" in f]
+    first_in_line = True
+    for f in file_list:
+        analyse_passenger_stats(f, first_in_line)
+        first_in_line = False
 
 
 if __name__=="__main__":

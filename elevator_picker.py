@@ -1,5 +1,6 @@
 # functions specific to request-elevator matching algorithms
 import random
+import numpy as np
 from elevator import is_elevator_full_now, is_elevator_full_at_target, has_max_requests
 
 
@@ -12,19 +13,15 @@ def get_best_elevator(elevator_list:list, psgr:dict, method_id:str) -> dict:
 
     return algo_options[method_id](elevator_list,psgr)
  
-    # if method_id == "simple_list":
-    #     return get_next_elevator_simple_list(elevator_list)
-    # if method_id == "simple_random":
-    #     return get_next_elevator_simple_random(elevator_list)
-    # if method_id == "same_dir":
-    #     return get_next_elevator_same_dir(elevator_list, psgr)
-
 
 def get_next_elevator_simple_list(elevator_list:list, psgr:dict=None):
-    # print(f"running simple_list algorithm")
+    """
+    iterate through the list of elevators to find first available
+    if none available pick the first elevator in the list
+    """
     for e in elevator_list:
-        if is_elevator_full_now(e):
-            print(f"elevator {e['name']} is full")
+        if is_elevator_full_at_target(e, psgr['source']):
+            print(f"elevator {e['name']} will be full at pickup of {psgr['id']}")
         else:
             return e
     
@@ -32,16 +29,24 @@ def get_next_elevator_simple_list(elevator_list:list, psgr:dict=None):
     return elevator_list[0]
 
 
-def get_next_elevator_simple_random(elevator_list:list, psgr:dict=None):
-    # print(f"running simple_list algorithm")
+def get_next_elevator_simple_random(elevator_list:list, psgr:dict):
+    """
+    mix up list of elevators before iterating to pick the first
+    available one, if all full add request to a random elevator
+    in the list
+    """
+    np.random.shuffle(elevator_list)
+
     for e in elevator_list:
-        if is_elevator_full_now(e) or has_max_requests(e):
-            print(f"elevator {e['name']} is full or lots of requests")
+        if is_elevator_full_at_target(e, psgr['source']) or has_max_requests(e):
+            print(f"elevator {e['name']} will be full or lots of requests")
         else:
             return e
     
     # if all elevators are full, pick one at random
-    return elevator_list[random.randint(0, len(elevator_list)-1)]
+    rng = np.random.default_rng()
+    i = rng.integers(0, len(elevator_list) - 1)
+    return elevator_list[i]
         
 
 def get_next_elevator_same_dir(elevator_list:list, psgr:dict):
@@ -53,32 +58,34 @@ def get_next_elevator_same_dir(elevator_list:list, psgr:dict):
         - if some fit, sort by distance from request floor
         - 
     """
-    # print("running same_dir algorithm")
     psgr_direction = 1 if psgr['dest'] > psgr['source'] else -1
     # narrow to only elevators going in same direction
     pick_list = [e for e in elevator_list if e['curr_direction'] == psgr_direction]
     print(f"pick list length after removing wrong direction: {len(pick_list)}")
-    if len(pick_list):
-        pick_list = [e for e in pick_list if e['curr_floor']*psgr_direction > psgr['source']*psgr_direction]
+    if pick_list:
+        pick_list = [e for e in pick_list if e['curr_floor']*psgr_direction < psgr['source']*psgr_direction]
         print(f"pick list length after removing already passed: {len(pick_list)}")
-    # if none in same direction, bail out to simple list
-    if len(pick_list)==0:
-        print("no elevators going same direction and on way to psgr")
-        return get_next_elevator_simple_list(elevator_list)
-    # iterate through list in order of closeness to psgr, assign first one
-    # that won't be full on arrival at psgr source floor
-    pick_list.sort(key=lambda x: get_wait_distance(x, psgr))
-    print([e['name'] for e in pick_list])
+        if pick_list:
+            pick_list.sort(key=lambda x: get_wait_distance(x, psgr))
+            print([e['name'] for e in pick_list])
 
-    for e in pick_list:
-        if is_elevator_full_at_target(e, psgr['source']):
-            print(f"elevator {e['name']} is full at time of pickup")
+            for e in pick_list:
+                if is_elevator_full_at_target(e, psgr['source']):
+                    print(f"elevator {e['name']} is full at time of pickup")
+                else:
+                    return e
         else:
-            return e
-    
-    print(f"no elevators available in same direction for passenger {psgr['id']}")
-    
-    # alternative 1: find closest empty elevator independent of requests or direction
+            print("no elevators going same direction and on way to psgr")
+    else:
+        print("no elevators going same direction")
+
+    print(f"no elevators available in same direction for and on way to passenger {psgr['id']}")
+    # if none available in same direction and on way to psgr:
+    return get_closest_empty_elevator(elevator_list, psgr)
+
+
+def get_closest_empty_elevator(elevator_list:list, psgr:dict) -> dict:
+    # step 1:  look for any empty elevator and send it to psgr
     empty_no_request_list = [e for e in elevator_list 
                             if len(e['passengers']) == 0
                             and len(e['requests']) == 0]
@@ -86,12 +93,17 @@ def get_next_elevator_same_dir(elevator_list:list, psgr:dict):
     if empty_no_request_list:
         empty_no_request_list.sort(key = lambda x: get_wait_distance(x, psgr))
         return empty_no_request_list[0]
+    else:
+        # step 2: get closest elevator with less requests than 2*capacity
+        non_empty_list = [e for e in elevator_list if len(e['requests']) < 2*e['capacity']]
+        if non_empty_list:
+            non_empty_list.sort(key = lambda x: get_wait_distance_post_empty(x, psgr))
+            return non_empty_list[0]
+        else:
+            # bail out and get simple random result
+            print(f"bailing out, no elevator found for {psgr['id']}")
+            return get_next_elevator_simple_random(elevator_list, psgr)
 
-    # alternative 2: get closest non-empty elevator after it drops off last psgr
-    non_empty_list = [e for e in elevator_list if len(e['passengers']) > 0]
-    non_empty_list.sort(key = lambda x: get_wait_distance_post_empty(x, psgr))
-    return non_empty_list[0]
-    
 
 def get_wait_distance(elevator:dict, psgr:dict) -> int:
     return abs(psgr['source'] - elevator['curr_floor'])
@@ -104,5 +116,9 @@ def get_wait_distance_post_empty(elevator:dict, psgr:dict) -> int:
         after it drops off its last passenger
     """
     psgr_dest_list = [p['dest'] for p in elevator['passengers']]
-    terminal_floor = max(psgr_dest_list) if elevator['curr_direction'] == 1 else min(psgr_dest_list)
-    return abs(psgr['source'] - terminal_floor)
+
+    if psgr_dest_list:
+        terminal_floor = max(psgr_dest_list) if elevator['curr_direction'] == 1 else min(psgr_dest_list)
+        return abs(psgr['source'] - terminal_floor)
+    else:
+        return abs(psgr['source'] - elevator['curr_floor'])
