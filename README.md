@@ -39,17 +39,20 @@ Goal:  simulate operation of elevators in a building based on a feed of passenge
     - To set the number of elevators use the switch "-e" or "--elevators" followed by an integer
     - To set the capacity of an elevator use the switch "-c" or "--capacity" followed by an integer
     - To set the elevator request algorithm use the switch "-a" or "--algorithm" followed by a valid algorithm name
-        - "simple_list": always picks the first elevator in the list that is not full
-        - "simple_random": picks a random elevator from the list that
-            - is not full
-            - does not have too many requests
-        - "same_dir": always picks the first elevator in the list that
-            - is going the same direction
-            - is approaching the floor on which the passenger is making a request
-            - is closest to the floor on which the passenger is making a request
-            - is not full and does not have more than 4 requests
-            - if no elevators meet above criteria, looks for closest empty elevator regardless of direction
-            - if no elevators meet above criteria, looks for closest non-empty elevator regardless of direction
+        - "simple_list":
+            - pick the first elevator in the list that is not full at the passenger's "pick up" floor
+            - if all elevators are full, pick the first elevator in the list
+        - "simple_random":
+            - shuffle the elevator list
+            - pick the first elevator in the list that is not full at the passenger's "pick up" floor
+            - if all elevators are full, pick an elevator randomly from the list
+        - "same_dir": 
+            - reduce the elevator list to only those that are heading same direction as the passenger
+            - reduce this list to only those elevators that are heading toward the passenger
+            - sort the list of remaining elevators in order of closeness to the passenger's "pick up" floor
+            - pick the first elevator in the list that is not full at the passenger's "pick up" floor
+            - if no elevators can be found this way, get the elevator with the smallest number of demands
+              - demands = requests + riders, represented by the length of an elevator's "target_floors" list
     - To set the number of passengers to model use the switch "-p" or "--passengers" followed by an integer
     - To set the range of time during which a passenger can request an elevator use the switch "-t" or  "--time" followed by an integer
    

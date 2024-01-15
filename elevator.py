@@ -18,7 +18,7 @@ def add_request(elevator:dict, psgr:dict):
     refresh_target_floor_list(elevator)
         
     
-def load_passenger(elevator:dict,psgr:dict):
+def load_passenger(elevator:dict,psgr:dict) :
     print(f"loading passenger {psgr['id']} on elevator {elevator['name']}")
     if is_elevator_full_now(elevator) == False:
         elevator['passengers'].append(psgr)
@@ -39,13 +39,13 @@ def refresh_target_floor_list(elevator:dict):
     elevator['target_floors'].extend([p['source'] for p in elevator['requests']])
 
 
-def is_elevator_full_now(elevator:dict):
+def is_elevator_full_now(elevator:dict) -> bool:
     current_load = len(elevator['passengers'])
     print(f"current load for elevator {elevator['name']} is {current_load}")
     return elevator['capacity'] <= current_load
 
 
-def is_elevator_full_at_target(elevator:dict, target_floor:int):
+def is_elevator_full_at_target(elevator:dict, target_floor:int) -> bool:
     current_load = len(elevator['passengers'])
     print(f"current load for elevator {elevator['name']} is {current_load}")
     getting_off = get_capacity_changes(elevator, target_floor, "off")
@@ -53,18 +53,25 @@ def is_elevator_full_at_target(elevator:dict, target_floor:int):
     return elevator['capacity'] <= current_load - getting_off + getting_on
 
 
-def get_capacity_changes(elevator:dict, target_floor:int, on_or_off:str):
+def get_capacity_changes(elevator:dict, target_floor:int, on_or_off:str) -> int:
+    """
+        calculate projected occupancy of elevator at target floor
+        based on passengers getting off and passenger requests
+        boarding - if request is boarding on way to target, make sure
+        passenger will not get off before arrival at target
+    """
     dir = elevator['curr_direction']
     psgr_list = elevator['passengers'] if on_or_off == "off" else elevator['requests']
     psgr_field = "source" if on_or_off == "off" else "dest"
 
-    changes_list = [p[psgr_field] for p in psgr_list 
+    changes_list = [p for p in psgr_list 
                       if p[psgr_field]*dir > elevator['curr_floor']*dir
                       and p[psgr_field]*dir <= target_floor*dir]
-
+    
     print(f"elevator {elevator['name']} getting {on_or_off}: {changes_list}")
     return len(changes_list)
 
 
-def has_max_requests(elevator:dict):
-    return len(elevator['requests']) >= 4
+def has_max_requests(elevator:dict) -> bool:
+    """return true if request count >= elevator's capacity"""
+    return len(elevator['requests']) >= elevator['capacity']
