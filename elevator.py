@@ -18,7 +18,7 @@ def add_request(elevator:dict, psgr:dict):
     refresh_target_floor_list(elevator)
         
     
-def load_passenger(elevator:dict,psgr:dict) :
+def load_passenger(elevator:dict,psgr:dict):
     print(f"loading passenger {psgr['id']} on elevator {elevator['name']}")
     if is_elevator_full_now(elevator) == False:
         elevator['passengers'].append(psgr)
