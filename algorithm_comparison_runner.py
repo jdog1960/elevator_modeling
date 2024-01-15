@@ -12,9 +12,9 @@ def main(sim_list_file_name:str=None):
     passengers = 100
     time = 25
 
-    if sim_list_file_name:
-        sim_file_name = sim_list_file_name
-    else:
+    sim_file_name = sim_list_file_name
+
+    if not sim_file_name:
         sim_file_name = build_simulation_list(floors, passengers, time)
     
     # run same sim list through the three algorithms and generate results
