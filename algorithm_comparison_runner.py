@@ -4,15 +4,18 @@ import simulation_runner
 from elevator_analyser import analyse_elevator_stats
 from passenger_analyser import analyse_passenger_stats
 
-def main():
+def main(sim_list_file_name:str=None):
 
     floors = 20
     elevators = 4
     capacity = 8
     passengers = 100
     time = 25
-    
-    sim_file_name = build_simulation_list(floors, passengers, time)
+
+    sim_file_name = sim_list_file_name
+
+    if not sim_file_name:
+        sim_file_name = build_simulation_list(floors, passengers, time)
     
     # run same sim list through the three algorithms and generate results
     algorithm_list = ["simple_list","simple_random","same_dir"]
@@ -43,4 +46,6 @@ def main():
 
 
 if __name__=="__main__":
-    main()
+    """option to skip creation of new sim list if testing changes"""
+    sim_list_file_name = "/Users/jacksn/Programs/repos/elevator_modeling/input/simulation_list_2024_01_15_111338.json"
+    main(sim_list_file_name)
