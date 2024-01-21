@@ -18,16 +18,17 @@ def main(sim_list_file_name:str=None):
         sim_file_name = build_simulation_list(floors, passengers, time)
     
     # run same sim list through the three algorithms and generate results
-    algorithm_list = ["simple_list","simple_random","same_dir"]
+    algorithm_list = [{'code':'sl','name':'simple_list'},
+                       {'code':'sr','name':'simple_random'},
+                       {'code':'sd','name':'same_dir'}]
 
     for a in algorithm_list:
         # first run simulation for specified algorithm
         simulation_runner.main(floors,
                                elevators,
                                capacity,
-                               a,
+                               a['code'],
                                passengers,
-                               time,
                                sim_file_name)
         
     # second, generate elevator summary stats

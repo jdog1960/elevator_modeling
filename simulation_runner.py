@@ -12,13 +12,8 @@ def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) ->
           {elevator_capacity} passengers per elevator""")
     
     # validate building first
-    if num_floors <= 2:
-        print('number of floors must be greater than 2')
-        return
-    
-    if num_elevators <= 1:
-        print('number of elevators must be greater than 1')
-        return
+    if not validate_building(num_floors, num_elevators, elevator_capacity):
+        return(f"elevator not valid")
     
     b = {}
     b['floors'] = num_floors
@@ -28,32 +23,109 @@ def create_building(num_floors:int, num_elevators:int, elevator_capacity:int) ->
     return b
 
 
+def validate_building(num_floors:int, num_elevators:int, capacity:int) -> int:
+    
+    if num_floors <= 2:
+        print('number of floors must be greater than 2')
+        return False
+    
+    if num_elevators <= 1:
+        print('number of elevators must be greater than 1')
+        return False
+    
+    if capacity <= 1:
+        print('elevator capacity must be greater than 1')
+        return False
+    
+    return True
+    
+
+def move_to_next_floor_or_stay(elevator:dict):
+    print(f"""{elevator['name']} has {len(elevator['passengers'])} passengers 
+          and {len(elevator['requests'])} requests, 
+          was on floor {elevator['curr_floor']}, 
+          direction {elevator['curr_direction']}""")
+    if len(elevator['passengers'])==0 and len(elevator['requests'])==0:
+        print(f"elevator {elevator['name']} is still on floor {elevator['curr_floor']}")
+    else:
+        elevator['curr_floor'] += elevator['curr_direction']
+        print(f"{elevator['name']} is now on floor {elevator['curr_floor']}")
+
+
+def unload_passengers(elevator:dict, time:int, psgr_stats_file_name:str):
+    """unload any passengers at their target floor"""
+    if len(elevator['passengers']):
+        print(f"unloading riders for elevator {elevator['name']}")
+        for p in elevator['passengers']:
+            if p['dest'] == elevator['curr_floor']:
+                unload_passenger(elevator,p)
+                p['end_time'] = time
+                with open(psgr_stats_file_name,'a') as passenger_stats_file:
+                    passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['request_time']},{p['start_time']},{p['end_time']},{elevator['name']}\n")
+    else:
+        print(f"no passengers for elevator {elevator['name']}")
+
+
+def passengers_push_button(psgr_list:list, 
+                            elevator_list:list, 
+                            time:int,
+                            algorithm:str):
+    if len(psgr_list):
+        print(f"{len(psgr_list)} new passengers at time {str(time)}")
+        for p in psgr_list:
+            p['status'] = "waiting"
+            p['request_time'] = time
+            assigned_elevator = get_best_elevator(elevator_list, p, algorithm)
+            add_request(assigned_elevator, p)
+    else:
+        print(f"no new passengers at time {str(time)}")
+
+
+def onboard_passengers(elevator:dict, time:int):
+    if len(elevator['requests']):
+        print(f"loading riders for elevator {elevator['name']} on floor {elevator['curr_floor']}")
+        for r in elevator['requests']:
+            if r['source'] == elevator['curr_floor']:
+                load_passenger(elevator,r)
+                r['start_time'] = time
+    else:
+        print(f"""elevator {elevator['name']} has no passengers 
+              to load on floor {elevator['curr_floor']}""")
+
+
+def set_direction_for_next_tick(elevator:dict):
+    if len(elevator['requests']) or len(elevator['passengers']):
+        if min(elevator['target_floors']) > elevator['curr_floor']:
+            elevator['curr_direction'] = 1
+            print(f"direction is up; next stop: {min(elevator['target_floors'])}")
+        elif max(elevator['target_floors']) < elevator['curr_floor']:
+            elevator['curr_direction'] = -1
+            print(f"direction is down; next stop: {max(elevator['target_floors'])}")
+
+
+def log_elevator_stats(elevator:dict, results_file_name:str, time:int):
+    print(f"elevator {elevator['name']} has {len(elevator['requests'])} requests and {len(elevator['passengers'])} riders")
+    with open(results_file_name, 'a') as result_file:
+        result_file.write(f"""{time},{elevator['name']},{elevator['curr_floor']},{elevator['curr_direction']},{len(elevator['passengers'])},{len(elevator['requests'])},\"{elevator['target_floors']}\"\n""")
+
+
 def main(floors:int,
          elevators:int,
          capacity:int,
          algorithm:str,
          passengers:int,
-         time:int,
          sim_file_name:str):
+    
     # initialize simulation
-    
-    algorithm_to_use = algorithm
-    algorithm_init = ""
-    if algorithm == "simple_list":
-        algorithm_init = "sl_"
-    elif algorithm == "simple_random":
-        algorithm_init = "sr_"
-    else:
-        algorithm_init = "sd_"
     time_str = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    results_file_name = f"output/{algorithm_init}results_elevators_{time_str}.csv"
-    passenger_stats_filename = f"output/{algorithm_init}passenger_stats_{time_str}.csv"
-    
+    results_file_name = f"output/{algorithm}_results_elevators_{time_str}.csv"
+    passenger_stats_filename = f"output/{algorithm}_passenger_stats_{time_str}.csv"
     sim_building = create_building(floors, elevators, capacity)
-    active_passengers = 0
+    elevator_list = sim_building['elevators']
     # calculate max time simulator will need to run
     max_time = floors*passengers
     
+
     with open(sim_file_name, 'r') as sim_file:
         sim_list = json.load(sim_file)
         max_request = max(sim_list, key=lambda p: p['time'])
@@ -63,80 +135,31 @@ def main(floors:int,
     for t in range(max_time):
         print(f"starting time {str(t)} iteration")
         
-        # first, move elevator if it has passengers or requests
-        # should be no movement at time zero since no passengers or requests yet
-        for e in sim_building['elevators']:
-            print(f"{e['name']} has {len(e['passengers'])} passengers and {len(e['requests'])} requests, was on floor {e['curr_floor']}, direction {e['curr_direction']}")
-            if len(e['passengers'])==0 and len(e['requests'])==0:
-                print(f"elevator {e['name']} is still on floor {e['curr_floor']}")
-            else:
-                e['curr_floor'] += e['curr_direction']
-                print(f"{e['name']} is now on floor {e['curr_floor']}")
+        for e in elevator_list:
+            move_to_next_floor_or_stay(e)
+            unload_passengers(e, t, passenger_stats_filename)
 
-            # second, elevators unload and then load passengers based on current floor
-            # unload first
-            if len(e['passengers']):
-                print(f"unloading riders for elevator {e['name']}")
-                for p in e['passengers']:
-                    if p['dest'] == e['curr_floor']:
-                        unload_passenger(e,p)
-                        active_passengers+=-1
-                        p['end_time'] = t
-                        with open(passenger_stats_filename,'a') as passenger_stats_file:
-                            passenger_stats_file.write(f"{p['id']},{p['source']},{p['dest']},{p['request_time']},{p['start_time']},{p['end_time']},{e['name']}\n")
-            else:
-                print(f"no passengers to unload for elevator {e['name']}")
-
-        # third, new passengers for current time period make requests
-        # and get assigned an elevator
         new_passengers = [p for p in sim_list if p['time']==t]
+        passengers_push_button(new_passengers, 
+                                elevator_list, 
+                                t,
+                                algorithm)
 
-        if len(new_passengers):
-            print(f"{len(new_passengers)} new passengers at time {str(t)}")
-            for p in new_passengers:
-                p['status'] = "waiting"
-                p['request_time'] = t
-                assigned_elevator = get_best_elevator(sim_building['elevators'], p, algorithm_to_use)
-                add_request(assigned_elevator,p)
-                active_passengers+=1
-        else:
-            print(f"no new passengers at time {str(t)}")
+        active_passengers=0
+        for e in elevator_list:
+            onboard_passengers(e, t)
+            set_direction_for_next_tick(e)
+            log_elevator_stats(e, results_file_name, t)
+            active_passengers+=len(e['requests']) + len(e['passengers'])
 
-        for e in sim_building['elevators']:
-            # load requests and convert them to passengers
-            if len(e['requests']):
-                print(f"loading riders for elevator {e['name']} on floor {e['curr_floor']}")
-                for r in e['requests']:
-                    if r['source'] == e['curr_floor']:
-                        load_passenger(e,r)
-                        r['start_time'] = t
-            else:
-                print(f"elevator {e['name']} has no passengers to load on floor {e['curr_floor']}")
-
-            # set direction for elevator for next tick of time, based on
-            # requests and elevators
-            print(f"target floors list: {e['target_floors']}")
-            if len(e['requests']) or len(e['passengers']):
-                if min(e['target_floors']) > e['curr_floor']:
-                    e['curr_direction'] = 1
-                    print(f"direction is up; next stop: {min(e['target_floors'])}")
-                elif max(e['target_floors']) < e['curr_floor']:
-                    e['curr_direction'] = -1
-                    print(f"direction is down; next stop: {max(e['target_floors'])}")
-
-            print(f"elevator {e['name']} has {len(e['requests'])} requests and {len(e['passengers'])} riders")
-
-            with open(results_file_name, 'a') as result_file:
-                result_file.write(f"{t},{e['name']},{e['curr_floor']},{e['curr_direction']},{len(e['passengers'])},{len(e['requests'])},\"{e['target_floors']}\"\n")
-        
         print(f"end of time {t}; active passengers: {active_passengers}")
         # stop simulation when no more active passengers and no future requests in sim file
-        future_requests = len([p for p in sim_list if p['time'] > t])
-        if active_passengers==0 and future_requests==0:
-            print(f"simulation stopped; no new active passengers and no upcoming requests")
+        if active_passengers==0 and t > max(sim_list, key=lambda x:x['time'])['time']:
+            print(f"simulation stopped; no new active passengers and no more sim time ticks")
             break
     
-    print(f"simulation complete for algorithm {algorithm_to_use}")
+    print(f"simulation complete for algorithm {algorithm}")
+
 
 if __name__ == "__main__":
     # running this file directly will always generate a new, different simuliation file
@@ -156,5 +179,4 @@ if __name__ == "__main__":
          args.capacity,
          args.algorithm,
          args.passengers,
-         args.time,
          sim_file_name)
