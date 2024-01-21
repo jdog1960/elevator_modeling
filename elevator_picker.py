@@ -6,9 +6,9 @@ from elevator import is_elevator_full_at_target, has_max_requests
 def get_best_elevator(elevator_list:list, psgr:dict, method_id:str) -> dict:
     # logic to pick the best elevator for current request
     print(f"getting best elevator for {psgr['id']} using method {method_id}...")
-    algo_options = {'simple_list':get_next_elevator_simple_list,
-                    'simple_random':get_next_elevator_simple_random,
-                    'same_dir':get_next_elevator_same_dir}
+    algo_options = {'sl':get_next_elevator_simple_list,
+                    'sr':get_next_elevator_simple_random,
+                    'sd':get_next_elevator_same_dir}
 
     return algo_options[method_id](elevator_list,psgr)
  
